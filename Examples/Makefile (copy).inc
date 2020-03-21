@@ -1,0 +1,196 @@
+# BEWARE
+# This file must be renamed into Makefile.inc in order to work!!
+#
+
+# *****  This is the user defined part of the Makefile
+#
+#  It is included in almost all Makefiles of the example (a part some particulare cases)
+#
+# It has been modified so to read some data from environmental variables
+# and be compatible with the system of modules used at MOX
+#
+# YOU CAN change it to suit your need!!!!
+#
+# Recall that you may also change some options on the fly using
+#
+#   make target OPTION=MY_OPTION
+#
+# for instance if you want to change the compiler to clang on the fly
+#
+# make target CXX=clang++
+#
+
+# The directory where the examples reside (you HAVE to change this)
+#PACS_ROOT=/home/forma/PacsVirtualMachine/pacs/PACSCourse/Material/Examples
+PACS_ROOT=/home/matteo/PACS/pacs-examples/Examples
+# The directory with the Eigen (leave blank if they are in a standard directory)
+EIGEN_DIR=$(mkEigenInc)
+#EIGEN_DIR=/usr/local/include/eigen3/
+
+# If you need extra directories. Leave as it is and chenge the specific Makefile (it is better)
+OTHER_LIB_DIR=
+OTHER_INC_DIR=
+#
+# You need trilinos at least 10.10. You may need to indicate where it is
+#
+TRILINOS_LIBDIR=-L/home/forma/lifev-env/trilinos-install/lib
+TRILINOS_INCDIR=-I/home/forma/lifev-env/trilinos-install/include
+#
+# Some istallations add trilinos_ to the name of the libraries
+# i.e. libtrilinos_teuchos.so. In that case set TRILINOS_SUFFIX=trilinos_
+# The
+TRILINOS_SUFFIX=# To make sure there is no space!
+#
+# Mpi directories for library and include files
+#
+MPI_LIBDIR=${mkOpenmpiLib}
+MPI_INCDIR=${mkOpenmpiInc}
+
+#
+# Name of additional libraries
+#
+LIBRARIES=
+
+#
+# The C++ compiler (taken from an environmental variable)
+#
+CXX = g++ 
+#CXX = icc
+#CXX = clang++
+#CXX = ${mkCxxCompiler}
+#
+#CC=your favourite C compiler
+# do
+# If you need C to compiler but you still need the c++ linker to 
+#LINK.o = $(LINK.cc)
+# Since we are only uning c++ I set the linker LINK.o form object files
+# should use the c++ compiler make has no separate macro for the linker!
+LINK.o = $(CXX) $(LDFLAGS) $(TARGET_ARCH)
+#
+# If you are using intel compilers
+ifeq ($(findstring icc, $(CXX)),icc)
+inteldir=$(dir $(CXX))
+# Change it for the location of your compiler!
+OTHER_LIB_DIR+=/usr/local/opt/intel/cc/9.0/lib
+endif
+#
+# Maybe you have to add the library for the clang compiler
+# if not installed in the standard directories.
+#
+ifeq ($(findstring clang, $(CXX)),clang)
+OTHER_LIB_DIR+=
+endif
+#
+#  DEFINES: Possible -DXX statements
+# Example
+# -DNDEBUG disactivates asserts
+DEFINES=
+#
+#  OPTIMIZATION
+# Warning flags: Level of warning
+#
+WARNFLAGS=-Wall
+#
+# Optimization flags : May be selected by using the variable RELEASE
+#
+# -c       compile only, generate corresponding .o files
+# -g       generate code suitable for the debugger
+# -p       generate code suitable for the profiler
+# -O       attemp code optimizations
+#
+ifdef RELEASE
+DEBUG=no
+else
+DEBUG=yes
+endif
+
+ifeq ($(DEBUG),yes)
+  OPTFLAGS=-g
+# If debugging we use the local dynamic libraries and avoid ldconfig -d
+# or setting LD_LIBRARY_PATH
+  LDFLAGS=-Wl,-rpath=. -Wl,-rpath=$(PACS_ROOT)/lib# 
+else
+  # Since aa 18-19 I have decided to indicate the libraries even if DEBUG=no.
+  # Remember however that normally release code does not contain the directories
+  # where the loader looks for libraris hardwired in the executables. Unless
+  # you take the responsibility of installing them in the right place.
+  # But here I want to avoid students messing around with LD_LIBRARY_PATH
+  # or ldconfig.
+  LDFLAGS=-Wl,-rpath=. -Wl,-rpath=$(PACS_ROOT)/lib#
+  OPTFLAGS=-O2 #maybe you want -O3
+  DEFINES+=-DNDEBUG
+endif
+# Add verbosity if needed
+ifeq ($(VERBOSE),yes)
+  VERBOSITY=-DVERBOSE
+endif
+
+#
+# Flags for standard 
+#
+# if you want c++14
+STANDARD=c++17
+$STANDARD=c++11
+export STDFLAGS=-std=$(STANDARD)
+##
+#  END USER MODIFIABLE PART
+##
+#
+# PACS libraries are stored here
+#
+export PACS_LIB_DIR=$(PACS_ROOT)/lib
+#
+# Main PACS include directory
+#
+export PACS_INC_DIR=$(PACS_ROOT)/include
+#
+# Other directories with libraries (if needed)
+#
+export OTHER_LIB_DIR
+#
+# Other include directories (if needed)
+#
+export OTHER_INC_DIR
+export CC
+export CXX
+# 
+# Location of
+# Doxygen configuration file
+#
+export DOXYFILE=$(PACS_ROOT)/DoxyfileCommon
+#
+# Compose options
+#
+# collect all includes
+ALL_INC_DIR= $(PACS_INC_DIR) $(OTHER_INC_DIR) $(EIGEN_DIR)
+includes := $(foreach inc,$(ALL_INC_DIR),-I$(inc) )
+# where to look for include files:
+# first the current directory, then the directory ./include
+# and then the possible other specifyed in OTHER_INC_DIR
+INCLS  = -I. -I./include $(includes) 
+# collect all library dirs
+ALL_LIB_DIR=$(PACS_LIB_DIR) $(OTHER_LIB_DIR)
+LIBD := $(foreach lib,$(ALL_LIB_DIR),-L$(lib) )
+#
+# Set make macros
+#
+export CPPFLAGS=$(INCLS) $(DEFINES) $(VERBOSITY)
+export CXXFLAGS=$(OPTFLAGS) $(STDFLAGS) $(WARNFLAGS)
+#
+# For C Programs 
+#
+export CCFLAGS=$(CXXFLAGS)
+#
+# name of file with dependencies
+#
+#header files
+export LDFLAGS+=$(OPTFLAGS) 
+#export LDLIBS=$(LIBRARIES)
+export DEPEND=make.dep
+# to avoid nasty warnings
+export ARFLAGS=rsU
+# Rule to generate pdf from latex files
+%.pdf:%.tex
+	pdflatex $<
+
+
