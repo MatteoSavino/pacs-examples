@@ -1,9 +1,17 @@
 #include <cmath>
 #include "horner.hpp"
 #include <algorithm>
-/*
- #include <execution> // for paralle algor.
-*/
+#include <cmath>
+// Comment/uncomment next line if you dont want/want parallelization
+// Test if I am compiling with g++ version >=9
+#ifdef PARALLELEXEC
+#if defined(__GNUC__) &&  (__GNUC__ >= 9)
+#include<execution>
+#else
+#undef PARALLELEXEC
+#endif
+#endif
+
 //! My function for power
 /*!
  Since std::pow() is very expensive I create my version for integer
@@ -20,6 +28,11 @@ double eval (std::vector<double> const & a, double const & x){
   double sum = a[0];
   for (std::vector<double>::size_type k = 1; k<a.size(); ++k){ 
     sum += a[k]*integerPow(x,k);// Pow is VERY expensive
+    // If you want to test with the standard pow comment the
+    // previous statement and uncomment the next one
+    //sum += a[k]*std::pow(x,k);// Pow is VERY expensive
+    
+    
   }
   return sum;
 }
@@ -31,6 +44,22 @@ double  horner(std::vector<double> const & a, double const & x){
   return u;
 }
 
+#ifdef PARALLELEXEC
+#warning "Using parallel implementation of std::transform"
+// NOT WORKING UNTIL IMPLEMENTED IN THE COMPILER
+//! Evaluates polynomial in a set of points (parallel version)
+std::vector<double>
+evaluatePoly(std::vector<double> const & points,
+		  std::vector<double> const & a,
+                  polyEval method)
+{
+  std::vector<double> result(points.size());
+  auto compute=[&a,&method] (double const & x){return method(a,x);};
+  std::transform(std::execution::par, points.begin(),points.end(),result.begin(),compute);
+  return result;
+}
+#else
+#warning "Using sequentisl implementation of std::transform"
 //! Evaluates polynomial in a set of points
 std::vector<double>
 evaluatePoly(std::vector<double> const & points,
@@ -42,18 +71,5 @@ evaluatePoly(std::vector<double> const & points,
   std::transform(points.begin(),points.end(),result.begin(),compute);
   return result;
 }
-
-/* NOT WORKING UNTIL IMPLEMENTED IN THE COMPILER
-//! Evaluates polynomial in a set of points (parallel version)
-std::vector<double>
-evaluatePoly_par(std::vector<double> const & points,
-		  std::vector<double> const & a,
-                  polyEval method)
-{
-  std::vector<double> result(points.size());
-  auto compute=[&a,&method] (double const & x){return method(a,x);};
-  std::transform(std::execution::par, points.begin(),points.end(),result.begin(),compute);
-  return result;
-}
-*/
+#endif
 
